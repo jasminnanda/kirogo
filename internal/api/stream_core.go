@@ -12,8 +12,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"kirogo/internal/kiro"
-	"kirogo/internal/util"
+	"github.com/jasminnanda/kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/util"
 )
 
 // errFirstTokenTimeout reports that the backend produced no content within the

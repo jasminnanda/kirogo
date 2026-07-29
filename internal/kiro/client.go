@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"time"
 
-	"kirogo/internal/util"
+	"github.com/jasminnanda/kirogo/internal/util"
 )
 
 // Request path and target constants.

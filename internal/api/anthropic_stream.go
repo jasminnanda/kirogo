@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"kirogo/internal/kiro"
-	"kirogo/internal/util"
+	"github.com/jasminnanda/kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/util"
 )
 
 // Anthropic stream event names.

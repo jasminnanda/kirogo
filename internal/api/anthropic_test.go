@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/kiro"
 )
 
 // postMessages sends an Anthropic request with the x-api-key header.

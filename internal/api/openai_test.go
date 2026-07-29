@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"kirogo/internal/kiro"
-	"kirogo/internal/translate"
+	"github.com/jasminnanda/kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/translate"
 )
 
 // postChatJSON sends a non-streaming request and parses the completion.

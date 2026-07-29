@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"kirogo/internal/catalog"
+	"github.com/jasminnanda/kirogo/internal/catalog"
 )
 
 // modelListResponse is the OpenAI-compatible /v1/models body.

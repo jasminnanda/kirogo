@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"kirogo/internal/catalog"
-	"kirogo/internal/config"
-	"kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/catalog"
+	"github.com/jasminnanda/kirogo/internal/config"
+	"github.com/jasminnanda/kirogo/internal/kiro"
 )
 
 // ---------- test harness ----------

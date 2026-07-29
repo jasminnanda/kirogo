@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/kiro"
 )
 
 // buildInput returns a BuildInput with sane defaults for a test.

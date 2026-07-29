@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"kirogo/internal/translate"
-	"kirogo/internal/util"
+	"github.com/jasminnanda/kirogo/internal/translate"
+	"github.com/jasminnanda/kirogo/internal/util"
 )
 
 // anthropicContentBlock is one block in an assembled message.

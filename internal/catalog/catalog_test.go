@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/kiro"
 )
 
 // pagedFetcher walks a scripted list of pages, keyed by the token it hands out.

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/kiro"
 )
 
 // staticFetcher serves fixed pages.

@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"kirogo/internal/kiro"
-	"kirogo/internal/util"
+	"github.com/jasminnanda/kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/util"
 )
 
 // openAIStreamDelta is the incremental payload in a streaming chunk.

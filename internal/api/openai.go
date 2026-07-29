@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"time"
 
-	"kirogo/internal/catalog"
-	"kirogo/internal/kiro"
-	"kirogo/internal/translate"
-	"kirogo/internal/util"
+	"github.com/jasminnanda/kirogo/internal/catalog"
+	"github.com/jasminnanda/kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/translate"
+	"github.com/jasminnanda/kirogo/internal/util"
 )
 
 // maxRequestBodyBytes caps an inbound request body. It is generous enough for a

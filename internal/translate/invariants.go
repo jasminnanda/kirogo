@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/kiro"
 )
 
 // MaxToolNameLength is the backend's hard limit on a tool name.

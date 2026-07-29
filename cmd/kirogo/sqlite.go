@@ -1,8 +1,8 @@
 package main
 
 import (
-	"kirogo/internal/auth"
-	"kirogo/internal/store"
+	"github.com/jasminnanda/kirogo/internal/auth"
+	"github.com/jasminnanda/kirogo/internal/store"
 )
 
 // sqliteLoader reads credentials from a kiro-cli SQLite database.

@@ -1,8 +1,8 @@
 package api
 
 import (
-	"kirogo/internal/translate"
-	"kirogo/internal/util"
+	"github.com/jasminnanda/kirogo/internal/translate"
+	"github.com/jasminnanda/kirogo/internal/util"
 )
 
 // estimateOutputTokens estimates the tokens in generated text.

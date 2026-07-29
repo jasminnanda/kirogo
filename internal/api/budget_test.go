@@ -8,7 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/kiro"
 )
 
 // ---------- outputBudget unit tests ----------

@@ -95,12 +95,24 @@ Whatever your plan includes — nothing is hardcoded. A typical account today:
 **1** · Install [Kiro](https://kiro.dev), sign in once, close it. That writes a token
 kirogo finds on its own.
 
-**2** · Build and run. Requires Go 1.24 or newer:
+**2** · Install it, with Go 1.24 or newer:
+
+```sh
+go install github.com/jasminnanda/kirogo/cmd/kirogo@latest
+```
+
+<details>
+<summary>No Go toolchain, or prefer building from source?</summary>
+<br>
+
+Grab a prebuilt binary from [Releases](https://github.com/jasminnanda/kirogo/releases) —
+Linux, macOS and Windows on both amd64 and arm64, static, nothing to install.
+
+Or build it yourself:
 
 ```sh
 git clone https://github.com/jasminnanda/kirogo.git && cd kirogo
 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o kirogo ./cmd/kirogo
-PROXY_API_KEY=pick-a-long-random-string ./kirogo
 ```
 
 Cross-compiling is the usual one-liner, and CI builds all five targets on every push:
@@ -110,13 +122,21 @@ GOOS=darwin GOARCH=arm64 go build -o kirogo-macos-arm64 ./cmd/kirogo
 GOOS=windows GOARCH=amd64 go build -o kirogo.exe ./cmd/kirogo
 ```
 
+</details>
+
+**3** · Run it:
+
+```sh
+PROXY_API_KEY=pick-a-long-random-string kirogo
+```
+
 ```console
 INFO credentials loaded source="auto-discovered credentials file" flow=kiro-desktop
 INFO model catalog loaded models=19 default_model=auto
 INFO kirogo listening addr=127.0.0.1:8000 models=19
 ```
 
-**3** · Point your editor at `http://127.0.0.1:8000` and you're done.
+**4** · Point your editor at `http://127.0.0.1:8000` and you're done.
 
 > [!IMPORTANT]
 > kirogo binds to localhost because it holds a live AWS token behind one shared key.

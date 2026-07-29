@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"kirogo/internal/kiro"
+	"github.com/jasminnanda/kirogo/internal/kiro"
 )
 
 // DefaultMaxInputTokens is assumed when the backend omits tokenLimits.
