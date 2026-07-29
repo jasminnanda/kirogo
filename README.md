@@ -10,6 +10,7 @@ through <b>OpenAI</b>- and <b>Anthropic</b>-compatible APIs — so Cursor, Claud
 Cline, Continue, Zed and Aider all just work. One static Go binary, zero dependencies.
 </p>
 
+[![CI](https://img.shields.io/github/actions/workflow/status/jasminnanda/kirogo/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/jasminnanda/kirogo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.24%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-success?style=for-the-badge)](go.mod)
@@ -94,11 +95,19 @@ Whatever your plan includes — nothing is hardcoded. A typical account today:
 **1** · Install [Kiro](https://kiro.dev), sign in once, close it. That writes a token
 kirogo finds on its own.
 
-**2** · Build and run:
+**2** · Build and run. Requires Go 1.24 or newer:
 
 ```sh
-go build -o kirogo ./cmd/kirogo
+git clone https://github.com/jasminnanda/kirogo.git && cd kirogo
+CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o kirogo ./cmd/kirogo
 PROXY_API_KEY=pick-a-long-random-string ./kirogo
+```
+
+Cross-compiling is the usual one-liner, and CI builds all five targets on every push:
+
+```sh
+GOOS=darwin GOARCH=arm64 go build -o kirogo-macos-arm64 ./cmd/kirogo
+GOOS=windows GOARCH=amd64 go build -o kirogo.exe ./cmd/kirogo
 ```
 
 ```console
