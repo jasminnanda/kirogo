@@ -1,0 +1,55 @@
+# ---------------------------------------------------------------------------
+# Secrets and local configuration
+# ---------------------------------------------------------------------------
+# .env holds PROXY_API_KEY and may hold a refresh token. Never commit it.
+.env
+.env.*
+!.env.example
+
+# Credential material, in case anything is ever copied into the tree.
+*.pem
+*.key
+credentials.json
+kiro-auth-token.json
+*.sqlite3
+!internal/store/testdata/*.sqlite3
+
+# ---------------------------------------------------------------------------
+# Build output
+# ---------------------------------------------------------------------------
+/kirogo
+/kirogo.exe
+/dist/
+/build/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go test and profiling artefacts
+*.test
+*.out
+coverage.*
+cover.html
+__debug_bin*
+
+# ---------------------------------------------------------------------------
+# Logs and scratch files
+# ---------------------------------------------------------------------------
+*.log
+nohup.out
+/tmp/
+/debug_logs/
+
+# ---------------------------------------------------------------------------
+# Editor and OS noise
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini

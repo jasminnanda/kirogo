@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Build, vet and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      # The whole point of kirogo is that it has none. A dependency sneaking in
+      # should fail the build, not be noticed later.
+      - name: Assert zero dependencies
+        run: |
+          if grep -q '^require' go.mod; then
+            echo "::error file=go.mod::go.mod gained a require block; kirogo is standard library only"
+            exit 1
+          fi
+          if [ -f go.sum ]; then
+            echo "::error file=go.sum::go.sum exists, which means a dependency was added"
+            exit 1
+          fi
+
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt reported unformatted files:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test -count=1 ./...
+
+      - name: Test with the race detector
+        run: go test -race -count=1 ./...
+
+  build-matrix:
+    name: Cross-compile ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ubuntu-latest
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Build static binary
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -trimpath -ldflags="-s -w" -o kirogo-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/kirogo
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kirogo-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: kirogo-${{ matrix.goos }}-${{ matrix.goarch }}
+          retention-days: 14
