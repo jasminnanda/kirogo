@@ -802,7 +802,12 @@ func TestMessagesThinkingBudgetSelectsEffort(t *testing.T) {
 	}
 }
 
-func TestMessagesThinkingDisabledSendsNoEffort(t *testing.T) {
+func TestMessagesThinkingDisabledAsksForTheLeastEffort(t *testing.T) {
+	// "thinking": {"type": "disabled"} is a request for no reasoning. claude-opus-5
+	// does not advertise "none", so the request cannot be met exactly and the least
+	// level it does offer is sent. Omitting the field would hand the decision back
+	// to the backend, which applies this model's default of "high" — the opposite
+	// of what the client asked for.
 	up := newFakeUpstream(t, upstreamScript{Events: []scriptedEvent{
 		{"assistantResponseEvent", `{"content":"x"}`},
 		{"metadataEvent", `{"tokenUsage":{"outputTokens":1,"totalTokens":2},"stopReason":"end_turn"}`},
@@ -814,8 +819,36 @@ func TestMessagesThinkingDisabledSendsNoEffort(t *testing.T) {
 	if rec := postMessages(t, s, "/v1/messages", body); rec.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
 	}
-	if strings.Contains(string(up.Requests()[0]), "additionalModelRequestFields") {
-		t.Errorf("thinking disabled must send no effort: %s", up.Requests()[0])
+	want := `"additionalModelRequestFields":{"reasoning":{"effort":"low"}}`
+	if !strings.Contains(string(up.Requests()[0]), want) {
+		t.Errorf("thinking disabled should ask for the least effort available\nwant %s\ngot  %s",
+			want, up.Requests()[0])
+	}
+}
+
+func TestThinkingDisabledSendsNoneWhenTheModelOffersIt(t *testing.T) {
+	// A model that advertises "none" can express the request exactly, so it gets
+	// "none" rather than an approximation.
+	up := newFakeUpstream(t, upstreamScript{Events: []scriptedEvent{
+		{"assistantResponseEvent", `{"content":"x"}`},
+		{"metadataEvent", `{"tokenUsage":{"outputTokens":1,"totalTokens":2},"stopReason":"end_turn"}`},
+	}})
+	s := newHarness(t, up, testServerOptions{ModelSpecs: []kiro.ModelSpec{{
+		ModelID:   "gpt-5.6-sol",
+		ModelName: "GPT 5.6 Sol",
+		AdditionalModelRequestFieldsSchema: effortSchemaFor("reasoning",
+			[]string{"none", "low", "medium", "high", "xhigh", "max"}, "high"),
+	}}})
+
+	body := `{"model":"gpt-5.6-sol","max_tokens":1024,"thinking":{"type":"disabled"},
+	  "messages":[{"role":"user","content":"hi"}]}`
+	if rec := postMessages(t, s, "/v1/messages", body); rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	want := `"additionalModelRequestFields":{"reasoning":{"effort":"none"}}`
+	if !strings.Contains(string(up.Requests()[0]), want) {
+		t.Errorf("a model advertising none should receive it\nwant %s\ngot  %s",
+			want, up.Requests()[0])
 	}
 }
 

@@ -259,6 +259,11 @@ KIRO_EFFORT_LEVEL=max      # default for everything
 editor's model picker. A level a model doesn't offer is clamped to that model's default
 rather than rejected.
 
+The `gpt-5.6-*` models also offer `none`, which turns reasoning off — use
+`gpt-5.6-sol:none` or `reasoning_effort: "none"`. On a model that has no `none`, a request
+for no reasoning gets the lowest level it does offer, because omitting the field entirely
+would hand the choice back to the backend, whose default is `high`.
+
 ## 📡 Endpoints
 
 | | Path | |

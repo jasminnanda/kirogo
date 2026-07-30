@@ -42,17 +42,17 @@ func (s *Server) prepare(ctx context.Context, ir *translate.Request) (*preparedR
 	operatorDefault := s.cfg.EffortLevel
 	if ir.DisableReasoning {
 		// An explicit request for no reasoning overrides both the operator default
-		// and the model default.
-		requestEffort = ""
+		// and the model default, and is expressed as the "none" level rather than by
+		// omitting the field. Omitting it hands the decision back to the backend,
+		// which applies the model's own default of "high" or above, so the client
+		// would receive the opposite of what it asked for.
+		requestEffort = catalog.EffortNone
 		operatorDefault = ""
 	}
 
 	resolution := s.catalog.Resolve(ir.Model, requestEffort, operatorDefault)
 
 	fields := resolution.AdditionalModelRequestFields()
-	if ir.DisableReasoning {
-		fields = nil
-	}
 
 	req, err := translate.Build(translate.BuildInput{
 		Messages:                     ir.Messages,

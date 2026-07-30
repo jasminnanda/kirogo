@@ -9,6 +9,15 @@ import "strings"
 // verified against the Kiro IDE bundle.
 var EffortLevels = []string{"low", "medium", "high", "xhigh", "max"}
 
+// EffortNone turns reasoning off.
+//
+// It is deliberately absent from EffortLevels, because the Kiro IDE's own global
+// list does not contain it. Several models advertise it in their individual
+// schema regardless, and the per-model schema is the authority here: it is also
+// what decides whether effort nests under output_config or reasoning. So "none"
+// is accepted for a model that advertises it and refused for one that does not.
+const EffortNone = "none"
+
 // GlobalDefaultEffort matches the Kiro IDE default.
 const GlobalDefaultEffort = "xhigh"
 
@@ -16,8 +25,16 @@ const GlobalDefaultEffort = "xhigh"
 // reasoning effort field.
 const AutoModelID = "auto"
 
-// IsValidEffortLevel reports whether level is in the allowlist.
+// effortRank orders every level kirogo knows from least reasoning to most, so a
+// request it cannot satisfy exactly can be answered with the nearest level a
+// model does offer.
+var effortRank = []string{EffortNone, "low", "medium", "high", "xhigh", "max"}
+
+// IsValidEffortLevel reports whether level is one kirogo recognises.
 func IsValidEffortLevel(level string) bool {
+	if level == EffortNone {
+		return true
+	}
 	for _, l := range EffortLevels {
 		if l == level {
 			return true
@@ -57,6 +74,23 @@ func (e *EffortSupport) Allows(level string) bool {
 		}
 	}
 	return false
+}
+
+// LeastLevel returns the lowest effort this model advertises, or an empty string
+// when it advertises nothing kirogo recognises.
+//
+// The model's own enum order is not trusted for this; the canonical ranking is,
+// so a model listing its levels in an unexpected order still gets the right answer.
+func (e *EffortSupport) LeastLevel() string {
+	if e == nil {
+		return ""
+	}
+	for _, level := range effortRank {
+		if e.Allows(level) {
+			return level
+		}
+	}
+	return ""
 }
 
 // extractEffortSupport probes a model's additionalModelRequestFieldsSchema for a
@@ -157,6 +191,13 @@ func ResolveEffort(model *Model, suffixLevel, requestLevel, operatorDefault stri
 		}
 		if support.Allows(candidate) {
 			return candidate
+		}
+		// A request to turn reasoning off that this model cannot express. Letting
+		// it fall through to the model's default would answer with the opposite of
+		// what was asked, because every default the backend advertises is "high" or
+		// above, so the least effort this model does offer is the honest reply.
+		if candidate == EffortNone {
+			return support.LeastLevel()
 		}
 		// Asked for something real but unsupported by this model: fall back to
 		// the model's own default so the request still carries an effort.

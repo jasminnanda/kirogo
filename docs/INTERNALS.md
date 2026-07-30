@@ -99,9 +99,22 @@ model — either `output_config` or `reasoning`:
 
 kirogo probes each model's own `additionalModelRequestFieldsSchema` to find which key and
 which levels that model accepts, rather than assuming. Assuming is wrong for at least one
-shipping model. Valid levels are `low`, `medium`, `high`, `xhigh` and `max`; some models
-also advertise `none`, which is filtered out of the `:level` variants but still reachable
-by passing `reasoning_effort: "none"` explicitly.
+shipping model.
+
+The Kiro IDE's global list of levels is `low`, `medium`, `high`, `xhigh` and `max`. The
+`gpt-5.6-*` models advertise a sixth, `none`, in their own schema, and the per-model schema
+wins: it is already the authority on which key to use, so it is the authority on levels
+too. A model advertising `none` receives it and gets a `:none` variant in `/v1/models`; a
+model that does not never sees it.
+
+That matters more than it looks. A request for no reasoning used to be expressed by
+omitting the field entirely, which hands the decision back to the backend — and every
+backend default is `high` or above. Asking for no reasoning returned heavy reasoning. So a
+request kirogo cannot satisfy exactly now resolves to the least level the model does offer
+(`low` on the Claude models) rather than falling through to its default. Verified on the
+wire: `reasoning_effort: "none"` against `gpt-5.6-sol` sends
+`{"reasoning":{"effort":"none"}}`, and against `claude-opus-5` sends
+`{"output_config":{"effort":"low"}}`.
 
 ### The response is a real binary event stream
 

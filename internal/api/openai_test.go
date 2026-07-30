@@ -524,14 +524,25 @@ func TestEffortReachesTheUpstreamPayload(t *testing.T) {
 			want: `"additionalModelRequestFields":{"reasoning":{"effort":"high"}}`,
 		},
 		{
-			name:       "reasoning_effort none sends no effort at all",
-			body:       `{"model":"claude-opus-5","reasoning_effort":"none","messages":[{"role":"user","content":"hi"}]}`,
-			wantAbsent: true,
+			// claude-opus-5 does not advertise "none", so the request cannot be
+			// satisfied exactly. Sending no field at all would let the backend apply
+			// this model's default of "high", handing back the opposite of what was
+			// asked, so the least effort it does offer is sent instead.
+			name: "reasoning_effort none falls to the least level a model offers",
+			body: `{"model":"claude-opus-5","reasoning_effort":"none","messages":[{"role":"user","content":"hi"}]}`,
+			want: `"additionalModelRequestFields":{"reasoning":{"effort":"low"}}`,
 		},
 		{
 			name: "unsupported level clamps to the model default",
 			body: `{"model":"claude-opus-5","reasoning_effort":"turbo","messages":[{"role":"user","content":"hi"}]}`,
 			want: `"additionalModelRequestFields":{"reasoning":{"effort":"high"}}`,
+		},
+		{
+			// A model with no effort support at all still receives no field, because
+			// there is nothing to express the request with.
+			name:       "a model without effort support gets no field",
+			body:       `{"model":"gpt-5","reasoning_effort":"none","messages":[{"role":"user","content":"hi"}]}`,
+			wantAbsent: true,
 		},
 	}
 
