@@ -267,7 +267,7 @@ func LoadFromDir(args []string, dir string) (*Config, error) {
 		FirstTokenMaxRetries:     3,
 		StreamingReadTimeout:     300 * time.Second,
 		ToolDescriptionMaxLength: 10000,
-		MaxPayloadBytes:          600000,
+		MaxPayloadBytes:          4000000,
 		LogLevel:                 slog.LevelInfo,
 		DumpModels:               *flagDumpModels,
 	}

@@ -182,9 +182,17 @@ func Build(in BuildInput) (*kiro.Request, error) {
 		AgentMode:                    in.AgentMode,
 	}
 
-	// Section 7.4: refuse an oversized payload rather than silently deleting
-	// history. Which messages matter is the client's decision, and quietly
-	// dropping them produces baffling model behaviour.
+	// Refuse an oversized payload rather than silently deleting history. Which
+	// messages matter is the client's decision, and quietly dropping them produces
+	// baffling model behaviour.
+	//
+	// This is a sanity guard, not the real ceiling. Measured against the live
+	// service: a 3.4MB request carrying 989k prompt tokens is accepted, and only
+	// past that does the backend answer 413 with a clear "Context limit reached"
+	// message naming the cause. So the backend polices its own per-model context
+	// perfectly well; the guard exists only to stop an absurd upload early. Setting
+	// it too low is worse than leaving it high, because it refuses requests the
+	// model could have served.
 	if in.MaxPayloadBytes > 0 {
 		size, err := req.SizeBytes()
 		if err != nil {

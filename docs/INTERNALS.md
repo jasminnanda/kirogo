@@ -277,8 +277,26 @@ credits.
 
 **Requests are never trimmed.** A conversation over `KIRO_MAX_PAYLOAD_BYTES` is refused
 with a 413 that explains why. Deciding which messages matter is the client's job;
-silently deleting history produces baffling model behaviour. The backend starts rejecting
-somewhere near 615,000 bytes with an unhelpful error, so kirogo stops short and says why.
+silently deleting history produces baffling model behaviour.
+
+That setting is a sanity guard, not the real ceiling, and it used to be set far too low.
+It defaulted to 600,000 bytes on the belief that the backend began failing near 615,000
+with an unhelpful error. Measured against the live service, that belief was wrong:
+
+```
+   600,039 bytes  ->  200   180,082 prompt tokens
+ 2,000,000 bytes  ->  200   584,513 prompt tokens
+ 3,400,074 bytes  ->  200   988,982 prompt tokens
+ 4,500,054 bytes  ->  413   "Context limit reached. The conversation exceeds this
+                             model's capacity. Start a new session, shorten the
+                             conversation, or switch to a model with a larger context"
+```
+
+So the advertised 1M-token window is genuinely reachable, and the backend polices its own
+per-model context with a clear, actionable message. The old default was refusing roughly
+83% of what the model could serve. The guard now defaults to 4,000,000 bytes and exists
+only to stop an absurd upload early; setting it low is worse than leaving it high, because
+it rejects requests the model would have answered.
 
 **Upstream truncation is detected, not patched.** When the backend cuts a response short
 it stops sending token accounting. kirogo notices, logs it as an upstream limit, and
@@ -332,7 +350,7 @@ Flags: `-host`, `-port`, `-dump-models`, `-version`.
 | `FIRST_TOKEN_MAX_RETRIES` | `3` | First-token attempts before a 504. |
 | `STREAMING_READ_TIMEOUT` | `300` | Maximum gap between chunks. |
 | `TOOL_DESCRIPTION_MAX_LENGTH` | `10000` | Relocation threshold. `0` disables. |
-| `KIRO_MAX_PAYLOAD_BYTES` | `600000` | Refuse larger requests with a 413. |
+| `KIRO_MAX_PAYLOAD_BYTES` | `4000000` | Sanity guard. Refuse larger requests with a 413. |
 | `LOG_LEVEL` | `INFO` | `DEBUG` logs the exact upstream payload. |
 
 Standard `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` are honoured. No SOCKS5 support; run

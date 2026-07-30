@@ -80,7 +80,7 @@ func TestDefaultsWhenNothingIsSet(t *testing.T) {
 		{"FirstTokenMaxRetries", cfg.FirstTokenMaxRetries, 3},
 		{"StreamingReadTimeout", cfg.StreamingReadTimeout, 300 * time.Second},
 		{"ToolDescriptionMaxLength", cfg.ToolDescriptionMaxLength, 10000},
-		{"MaxPayloadBytes", cfg.MaxPayloadBytes, 600000},
+		{"MaxPayloadBytes", cfg.MaxPayloadBytes, 4000000},
 		{"LogLevel", cfg.LogLevel, slog.LevelInfo},
 		{"DumpModels", cfg.DumpModels, false},
 	}
