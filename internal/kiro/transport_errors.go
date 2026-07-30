@@ -84,6 +84,26 @@ func transportError(endpoint string, err error) error {
 	return fmt.Errorf("%s (%s): %w", advice, category, err)
 }
 
+// IsTransientTransport reports whether err is a transport failure that a later
+// attempt could plausibly succeed through.
+//
+// DNS, refused connections, resets and timeouts are transient: a proxy started at
+// boot routinely runs before the resolver is answering, and the first attempt then
+// loses a race it cannot see. TLS and proxy failures are configuration, and a
+// cancelled context was deliberate, so none of those improve on a second attempt.
+//
+// This judges the transport only. Whether Kiro itself refused a request is a
+// separate question, and the caller is better placed to ask it.
+func IsTransientTransport(err error) bool {
+	switch classifyTransportError(err) {
+	case "DNS resolution failed", "connection refused", "connection reset",
+		"network unreachable", "timed out", "network error":
+		return true
+	default:
+		return false
+	}
+}
+
 // endpointHost extracts a host for an error message, falling back to the raw
 // string when it will not parse.
 func endpointHost(endpoint string) string {

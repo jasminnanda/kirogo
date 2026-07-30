@@ -87,9 +87,7 @@ func run(args []string) error {
 	// exist, what their context windows are, or which effort levels they accept.
 	// There is deliberately no embedded fallback list, because a stale hardcoded
 	// list is what stops a proxy from ever seeing new models.
-	startupCtx, cancelStartup := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancelStartup()
-	if err := models.Refresh(startupCtx); err != nil {
+	if err := loadCatalog(context.Background(), models, time.Sleep); err != nil {
 		return fmt.Errorf("could not load the model catalog from %s: %w\n\n"+
 			"kirogo needs the catalog to start. Things worth checking:\n"+
 			"  - your credentials are valid: sign in to Kiro IDE again\n"+
@@ -150,6 +148,78 @@ func run(args []string) error {
 	}
 	slog.Info("kirogo stopped")
 	return nil
+}
+
+// startupCatalogAttempts bounds how many times the catalog fetch is tried before
+// giving up at startup.
+const startupCatalogAttempts = 6
+
+// startupAttemptTimeout caps a single catalog attempt.
+const startupAttemptTimeout = 60 * time.Second
+
+// startupMaxBackoff caps the wait between attempts.
+const startupMaxBackoff = 10 * time.Second
+
+// loadCatalog fetches the model catalog at startup, retrying transport failures.
+//
+// Running as a service makes this necessary. A systemd user unit has no meaningful
+// ordering against the network, so it can start seconds after boot while the DNS
+// resolver is still coming up; the first attempt then fails on name resolution
+// through no fault of the configuration. Exiting there leaves the service dead, or
+// alive only because a restart policy papered over it, with a failed start in the
+// journal on every single boot.
+//
+// Only transport failures are waited through. If Kiro answered and refused, or the
+// refresh endpoint returned a status, the request arrived and the answer will not
+// change, so that surfaces immediately rather than after half a minute of retries.
+func loadCatalog(ctx context.Context, models *catalog.Catalog, sleep func(time.Duration)) error {
+	var err error
+
+	for attempt := 1; attempt <= startupCatalogAttempts; attempt++ {
+		attemptCtx, cancel := context.WithTimeout(ctx, startupAttemptTimeout)
+		err = models.Refresh(attemptCtx)
+		cancel()
+
+		if err == nil {
+			return nil
+		}
+		if !retryableAtStartup(err) || attempt == startupCatalogAttempts {
+			return err
+		}
+
+		delay := time.Duration(1<<(attempt-1)) * time.Second
+		if delay > startupMaxBackoff {
+			delay = startupMaxBackoff
+		}
+		slog.Warn("could not reach the model catalog yet, waiting and retrying. "+
+			"this is normal for a few seconds after boot, while DNS comes up",
+			"attempt", attempt, "of", startupCatalogAttempts,
+			"retrying_in", delay, "error", err.Error())
+
+		sleep(delay)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+	}
+
+	return err
+}
+
+// retryableAtStartup reports whether a catalog failure is worth waiting through.
+func retryableAtStartup(err error) bool {
+	// Kiro received the request and refused it. Sending it again changes nothing.
+	var apiErr *kiro.APIError
+	if errors.As(err, &apiErr) {
+		return false
+	}
+	// The refresh endpoint answered with a status code, so the credential is the
+	// problem rather than the network. A zero status means the request never
+	// arrived, which is exactly the case worth retrying.
+	var refreshErr *auth.RefreshError
+	if errors.As(err, &refreshErr) && refreshErr.StatusCode != 0 {
+		return false
+	}
+	return kiro.IsTransientTransport(err)
 }
 
 // dumpModels prints the live catalog as a table.

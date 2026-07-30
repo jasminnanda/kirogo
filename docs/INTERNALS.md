@@ -308,6 +308,29 @@ an upstream fault, because it is not one.
 within `FIRST_TOKEN_TIMEOUT`, kirogo abandons the attempt and re-issues it. Once a single
 byte has reached the client, no retry happens — a partial response is never restarted.
 
+**The startup catalog fetch waits through a boot race.** A systemd user unit has no
+meaningful ordering against the network, so kirogo can start seconds after boot while the
+DNS resolver is still coming up. Observed on a real reboot:
+
+```
+13:43:54  Started
+13:43:54  token refresh failed — lookup prod.us-east-1.auth.desktop.kiro.dev: server misbehaving
+13:43:54  Main process exited
+13:43:59  Scheduled restart
+13:44:02  model catalog loaded, kirogo listening
+```
+
+The restart policy papered over it, but every boot left a failed start in the journal, and
+a slower resolver could have exhausted the restart limit. So the catalog fetch now retries
+on its own: up to 6 attempts with backoff doubling from 1s to a 10s cap, roughly 25s of
+patience in total.
+
+Only transport failures are waited through. If Kiro answered and refused, or the refresh
+endpoint returned a status code, the request arrived and the answer will not change, so
+that surfaces immediately instead of after half a minute. `auth.RefreshError.StatusCode`
+is the signal: zero means the request never landed and is worth retrying, non-zero means
+the credential itself is the problem.
+
 **Streaming connections are not pooled.** Each stream gets a fresh connection and
 `Connection: close`, because reusing a pooled connection for a long-lived stream leaks
 sockets in `CLOSE_WAIT` when a network interface changes.
