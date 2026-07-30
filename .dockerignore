@@ -1,0 +1,33 @@
+# The build stage copies cmd/ and internal/ explicitly, so this file is a second
+# line of defence rather than the primary filter. It matters most for `docker
+# build .` context upload time and for making sure a stray credentials file in a
+# working tree can never reach a build layer.
+
+# Credentials and local configuration. Nothing here belongs in an image.
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+kiro-auth-token.json
+
+# Version control and CI.
+.git
+.gitignore
+.github
+
+# Build output. A binary built on the host is the wrong architecture as often as
+# not, and would be overwritten anyway.
+kirogo
+kirogo.exe
+dist/
+
+# Editor and workspace files.
+*.code-workspace
+.vscode/
+.idea/
+
+# Documentation and tests are not needed to build the binary.
+docs/
+*.md
+*_test.go

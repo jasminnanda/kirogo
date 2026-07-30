@@ -52,7 +52,7 @@ already making.
 |:--|:--|
 | 🔌 **Two APIs** | OpenAI `/v1/chat/completions` and Anthropic `/v1/messages`, streaming and not |
 | 📦 **Zero dependencies** | Go standard library only. `go.mod` has no `require` block |
-| ⚡ **One static binary** | 7.5 MB, no runtime, no interpreter, no Docker |
+| ⚡ **One static binary** | 7.5 MB, no runtime, no interpreter, no Docker required |
 | 🛠️ **Full tool calling** | Round trips, parallel calls, streaming argument deltas, both APIs |
 | 🧠 **Native reasoning** | Real thinking blocks with signature replay, not simulated |
 | 👁️ **Vision** | Image input on both APIs |
@@ -143,6 +143,44 @@ INFO kirogo listening addr=127.0.0.1:8000 models=19
 > kirogo binds to localhost because it holds a live AWS token behind one shared key.
 > `SERVER_HOST=0.0.0.0` exposes that to your whole network. Use a long random
 > `PROXY_API_KEY` — anyone who reaches the port can spend your quota.
+
+<details>
+<summary>Prefer a container?</summary>
+<br>
+
+A static binary needs no container, so this is here for hosts that standardise on
+them rather than because kirogo wants one.
+
+```sh
+docker build --build-arg VERSION=1.0.2 -t kirogo:1.0.2 .
+
+docker run -d --name kirogo \
+  -p 127.0.0.1:8000:8000 \
+  -e PROXY_API_KEY=pick-a-long-random-string \
+  -e KIRO_CREDS_FILE=/creds/kiro-auth-token.json \
+  -v ~/.aws/sso/cache:/creds \
+  kirogo:1.0.2
+```
+
+Or with the bundled Compose file:
+
+```sh
+PROXY_API_KEY=pick-a-long-random-string KIROGO_CREDS_DIR=~/.aws/sso/cache \
+  docker compose up -d --build
+```
+
+Two details decide whether this keeps working:
+
+- **The credentials volume must be writable.** The Kiro refresh token rotates on
+  every refresh and kirogo persists the new one. Mounted read-only, the container
+  serves traffic until the first rotation and then cannot refresh.
+- **The host directory must be writable by UID 65532**, the unprivileged user the
+  image runs as.
+
+The image runs as non-root with a read-only root filesystem and no capabilities,
+and reports health on `/health`, which needs no API key.
+
+</details>
 
 ## 🔌 Connect your editor
 

@@ -1,0 +1,61 @@
+# Example Compose deployment for kirogo.
+#
+#   docker compose build
+#   docker compose up -d
+#
+# Two things here are load-bearing rather than cosmetic:
+#
+#  1. The published port is bound to 127.0.0.1. kirogo authenticates every request
+#     with PROXY_API_KEY, but over plain HTTP that key crosses the network in
+#     clear, so the container is meant to sit behind a TLS terminator. Change this
+#     to 0.0.0.0 only if you understand that consequence.
+#
+#  2. The credentials directory is a writable volume, not a read-only file mount.
+#     The Kiro refresh token rotates on every refresh and kirogo persists the new
+#     one. Mount it read-only and the container works until the first rotation,
+#     then loses its ability to refresh.
+
+services:
+  kirogo:
+    build:
+      context: .
+      args:
+        # Stamped into the binary so -version and /health report something real.
+        VERSION: ${KIROGO_VERSION:-dev}
+    image: kirogo:${KIROGO_VERSION:-dev}
+    container_name: kirogo
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:8000:8000"
+
+    environment:
+      PROXY_API_KEY: ${PROXY_API_KEY:?PROXY_API_KEY must be set}
+      KIRO_CREDS_FILE: /creds/kiro-auth-token.json
+      # Clients that select reasoning effort through the model name need this.
+      KIRO_EXPOSE_EFFORT_VARIANTS: "true"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+    volumes:
+      # Host directory must be writable by UID 65532, the unprivileged user the
+      # image runs as. chown it accordingly, or token rotation fails silently
+      # until the current access token expires.
+      - ${KIROGO_CREDS_DIR:-./creds}:/creds
+
+    # The binary writes nothing outside the credentials volume, so the root
+    # filesystem can be read-only. tmpfs covers /tmp for anything transient.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+
+    # kirogo binds an unprivileged port and needs no capabilities at all.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
