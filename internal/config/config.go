@@ -15,18 +15,54 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 )
 
+// devVersion is what a build from a working tree reports. It doubles as the
+// sentinel that tells resolveVersion whether a linker stamp already won.
+const devVersion = "dev"
+
 // Version is the kirogo release version reported by /health and -version.
 //
-// It is a var rather than a const so a release build can stamp the real tag in
-// with -ldflags "-X github.com/jasminnanda/kirogo/internal/config.Version=1.2.3".
-// The value here is what a build from a working tree reports.
-var Version = "1.0.0"
+// Three build paths have to end up honest, which is why this is resolved rather
+// than hardcoded:
+//
+//   - a release archive, built by the workflow with
+//     -ldflags "-X github.com/jasminnanda/kirogo/internal/config.Version=1.2.3"
+//   - `go install github.com/jasminnanda/kirogo/cmd/kirogo@v1.2.3`, which applies
+//     no ldflags but does embed the module version in the binary
+//   - `go build` in a checkout, which has neither and reports "dev"
+//
+// The second path is what caught this out: it produced a binary carrying v1.0.1
+// code that announced itself as 1.0.0.
+var Version = devVersion
+
+// A linker stamp lands before init runs, so if Version still holds the sentinel
+// then no release build claimed it and the embedded module version is the next
+// best source.
+func init() { Version = resolveVersion(Version, debug.ReadBuildInfo) }
+
+// resolveVersion picks the most trustworthy version available.
+//
+// readBuildInfo is a parameter so the three build paths can be tested without
+// actually producing three binaries.
+func resolveVersion(stamped string, readBuildInfo func() (*debug.BuildInfo, bool)) string {
+	if stamped != "" && stamped != devVersion {
+		return stamped
+	}
+	if info, ok := readBuildInfo(); ok && info != nil {
+		// A checkout build reports "(devel)" here; only a module-proxy install
+		// carries a real tag.
+		if v := info.Main.Version; v != "" && v != "(devel)" {
+			return strings.TrimPrefix(v, "v")
+		}
+	}
+	return devVersion
+}
 
 // DefaultProxyAPIKey is used when PROXY_API_KEY is not configured. Running with
 // this value logs a loud warning because it grants access to a live AWS token.

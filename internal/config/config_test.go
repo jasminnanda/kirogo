@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
@@ -653,3 +654,118 @@ func TestSystemPromptMode(t *testing.T) {
 
 // Copyright (c) 2026 Jasmin (https://github.com/jasminnanda)
 // Licensed under the MIT License. See LICENSE in the project root.
+
+// ---------- version resolution ----------
+
+// buildInfo returns a readBuildInfo stub reporting the given main module version.
+func buildInfo(version string) func() (*debug.BuildInfo, bool) {
+	return func() (*debug.BuildInfo, bool) {
+		return &debug.BuildInfo{Main: debug.Module{Version: version}}, true
+	}
+}
+
+func TestResolveVersionAcrossTheThreeBuildPaths(t *testing.T) {
+	noBuildInfo := func() (*debug.BuildInfo, bool) { return nil, false }
+
+	cases := []struct {
+		name          string
+		stamped       string
+		readBuildInfo func() (*debug.BuildInfo, bool)
+		want          string
+	}{
+		{
+			// The release workflow passes -ldflags -X, and a checkout build reports
+			// "(devel)" for the module, so the stamp has to win.
+			name:          "release archive: linker stamp wins over (devel)",
+			stamped:       "1.2.3",
+			readBuildInfo: buildInfo("(devel)"),
+			want:          "1.2.3",
+		},
+		{
+			// go install module@version: no stamp, but the tag is embedded. This is
+			// the case that used to report the wrong version.
+			name:          "go install: embedded module version is used",
+			stamped:       devVersion,
+			readBuildInfo: buildInfo("v1.0.1"),
+			want:          "1.0.1",
+		},
+		{
+			name:          "go build in a checkout: neither source, reports dev",
+			stamped:       devVersion,
+			readBuildInfo: buildInfo("(devel)"),
+			want:          devVersion,
+		},
+		{
+			name:          "build info unavailable at all",
+			stamped:       devVersion,
+			readBuildInfo: noBuildInfo,
+			want:          devVersion,
+		},
+		{
+			name:          "nil build info without an error flag",
+			stamped:       devVersion,
+			readBuildInfo: func() (*debug.BuildInfo, bool) { return nil, true },
+			want:          devVersion,
+		},
+		{
+			name:          "empty module version",
+			stamped:       devVersion,
+			readBuildInfo: buildInfo(""),
+			want:          devVersion,
+		},
+		{
+			// A stamp always wins, even against a real embedded tag, because the
+			// release build is the more deliberate signal.
+			name:          "stamp beats a real embedded tag",
+			stamped:       "2.0.0",
+			readBuildInfo: buildInfo("v1.0.1"),
+			want:          "2.0.0",
+		},
+		{
+			name:          "an empty stamp falls through rather than reporting nothing",
+			stamped:       "",
+			readBuildInfo: buildInfo("v3.1.4"),
+			want:          "3.1.4",
+		},
+		{
+			// Tags carry a leading v on the wire but users expect a bare number.
+			name:          "the leading v is stripped exactly once",
+			stamped:       devVersion,
+			readBuildInfo: buildInfo("v10.20.30"),
+			want:          "10.20.30",
+		},
+		{
+			name:          "a prerelease tag survives intact",
+			stamped:       devVersion,
+			readBuildInfo: buildInfo("v1.1.0-rc.2"),
+			want:          "1.1.0-rc.2",
+		},
+		{
+			// A pseudo-version is what an untagged commit install produces. Ugly, but
+			// truthful, so it should pass through.
+			name:          "pseudo-version passes through",
+			stamped:       devVersion,
+			readBuildInfo: buildInfo("v0.0.0-20260729234254-7b2972157ac0"),
+			want:          "0.0.0-20260729234254-7b2972157ac0",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := resolveVersion(tc.stamped, tc.readBuildInfo); got != tc.want {
+				t.Errorf("resolveVersion(%q) = %q, want %q", tc.stamped, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestVersionIsNeverEmptyOrRawTagFormat(t *testing.T) {
+	// Whatever path built this test binary, the reported version has to be usable in
+	// a health response and must not carry the wire-format leading v.
+	if Version == "" {
+		t.Error("Version is empty; /health and -version would report nothing")
+	}
+	if strings.HasPrefix(Version, "v") {
+		t.Errorf("Version = %q, which still carries the leading v", Version)
+	}
+}
