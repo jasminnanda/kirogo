@@ -10,6 +10,7 @@ through <b>OpenAI</b>- and <b>Anthropic</b>-compatible APIs — so Cursor, Claud
 Cline, Continue, Zed and Aider all just work. One static Go binary, zero dependencies.
 </p>
 
+[![Release](https://img.shields.io/github/v/release/jasminnanda/kirogo?style=for-the-badge&label=release&color=00ADD8)](https://github.com/jasminnanda/kirogo/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/jasminnanda/kirogo/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/jasminnanda/kirogo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.24%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev)
