@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release, for example v1.0.0. It must already exist.'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Resolve the version
+        id: version
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      # A release must not ship code that does not pass its own suite.
+      - name: Verify before publishing
+        run: |
+          test -z "$(gofmt -l .)" || { echo "::error::gofmt reported unformatted files"; exit 1; }
+          go vet ./...
+          go test -count=1 ./...
+
+      - name: Build every target
+        env:
+          CGO_ENABLED: 0
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # Stripped and trimmed, with the tag stamped in so -version cannot lie.
+          flags="-s -w -X github.com/jasminnanda/kirogo/internal/config.Version=${VERSION}"
+
+          build() {
+            os="$1"; arch="$2"; ext="${3:-}"
+            stem="kirogo_${VERSION}_${os}_${arch}"
+            stage="dist/${stem}"
+            echo "building ${os}/${arch}"
+
+            mkdir -p "$stage"
+            GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags="$flags" \
+              -o "${stage}/kirogo${ext}" ./cmd/kirogo
+            cp LICENSE README.md "$stage/"
+
+            # Both archive types stay flat, so extracting gives the binary next to
+            # its licence rather than burying it a directory down.
+            if [ "$os" = windows ]; then
+              (cd "$stage" && zip -qr "../${stem}.zip" .)
+            else
+              tar -czf "dist/${stem}.tar.gz" -C "$stage" .
+            fi
+            rm -rf "$stage"
+          }
+
+          build linux   amd64
+          build linux   arm64
+          build darwin  amd64
+          build darwin  arm64
+          build windows amd64 .exe
+
+          (cd dist && sha256sum kirogo_* > SHA256SUMS)
+          ls -la dist
+          cat dist/SHA256SUMS
+
+      - name: Smoke test the linux amd64 binary
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          tar -xzf "dist/kirogo_${VERSION}_linux_amd64.tar.gz" -C /tmp ./kirogo
+          got="$(/tmp/kirogo -version)"
+          echo "reported: $got"
+          [ "$got" = "kirogo ${VERSION}" ] || {
+            echo "::error::binary reports '$got', expected 'kirogo ${VERSION}'"; exit 1; }
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          notes="$(cat <<EOF
+          ## Install
+
+          \`\`\`sh
+          go install github.com/jasminnanda/kirogo/cmd/kirogo@${TAG}
+          \`\`\`
+
+          Or download a binary below. Every archive holds one static executable with no
+          runtime, no interpreter and no shared libraries. Verify with:
+
+          \`\`\`sh
+          sha256sum -c SHA256SUMS --ignore-missing
+          \`\`\`
+
+          | Platform | Asset |
+          |---|---|
+          | Linux x86_64 | \`kirogo_${VERSION}_linux_amd64.tar.gz\` |
+          | Linux ARM64 | \`kirogo_${VERSION}_linux_arm64.tar.gz\` |
+          | macOS Intel | \`kirogo_${VERSION}_darwin_amd64.tar.gz\` |
+          | macOS Apple silicon | \`kirogo_${VERSION}_darwin_arm64.tar.gz\` |
+          | Windows x86_64 | \`kirogo_${VERSION}_windows_amd64.zip\` |
+
+          See the [README](https://github.com/jasminnanda/kirogo#readme) for editor setup.
+          EOF
+          )"
+          gh release create "$TAG" dist/* \
+            --title "kirogo $TAG" \
+            --notes "$notes" \
+            --verify-tag

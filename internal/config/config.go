@@ -22,7 +22,11 @@ import (
 )
 
 // Version is the kirogo release version reported by /health and -version.
-const Version = "1.0.0"
+//
+// It is a var rather than a const so a release build can stamp the real tag in
+// with -ldflags "-X github.com/jasminnanda/kirogo/internal/config.Version=1.2.3".
+// The value here is what a build from a working tree reports.
+var Version = "1.0.0"
 
 // DefaultProxyAPIKey is used when PROXY_API_KEY is not configured. Running with
 // this value logs a loud warning because it grants access to a live AWS token.
